@@ -1,0 +1,72 @@
+/*  ISC License
+ *
+ *  Verilator testbench for SweRV SoC
+ *
+ *  Copyright (C) 2019  Olof Kindgren <olof.kindgren@gmail.com>
+ *
+ *  Permission to use, copy, modify, and/or distribute this software for any
+ *  purpose with or without fee is hereby granted, provided that the above
+ *  copyright notice and this permission notice appear in all copies.
+ *
+ *  THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ *  WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ *  MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ *  ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ *  WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ *  ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ *  OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ */
+#include <stdint.h>
+#include <signal.h>
+
+#include "verilated_vcd_c.h"
+#include "Vtb.h"
+
+using namespace std;
+
+static bool done;
+
+vluint64_t main_time = 0;       // Current simulation time
+// This is a 64-bit integer to reduce wrap over issues and
+// allow modulus.  You can also use a double, if you wish.
+
+double sc_time_stamp () {       // Called by $time in Verilog
+  return main_time;           // converts to double, to match
+  // what SystemC does
+}
+
+void INThandler(int signal)
+{
+	printf("\nCaught ctrl-c\n");
+	done = true;
+}
+
+int main(int argc, char **argv, char **env)
+{
+  Verilated::commandArgs(argc, argv);
+
+  Vtb* top = new Vtb;
+
+  VerilatedVcdC * tfp = 0;
+  const char *vcd = Verilated::commandArgsPlusMatch("vcd=");
+  if (vcd[0]) {
+    Verilated::traceEverOn(true);
+    tfp = new VerilatedVcdC;
+    top->trace (tfp, 99);
+    tfp->open ("trace.vcd");
+  }
+
+  signal(SIGINT, INThandler);
+
+  top->clk = 1;
+  while (!(done || Verilated::gotFinish())) {
+    top->eval();
+    if (tfp)
+      tfp->dump(main_time);
+    top->clk = !top->clk;
+    main_time+=5;
+  }
+  if (tfp)
+    tfp->close();
+  exit(0);
+}

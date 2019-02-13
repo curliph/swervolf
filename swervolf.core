@@ -1,0 +1,57 @@
+CAPI=2:
+
+name : ::swervolf:0
+
+filesets:
+  tb:
+    files:
+      - tb/dpram.v
+      - tb/tb.v
+    file_type : verilogSource
+    depend : ["pulp-platform.org::axi_mem_if", swerv]
+
+  verilator_tb:
+    files : [tb/tb.cpp : {file_type : cppSource}]
+
+targets:
+  sim:
+    default_tool : verilator
+    filesets :
+      - tb
+      - "tool_verilator? (verilator_tb)"
+
+    generate : [swerv_default_config]
+    parameters : [ifu_mem_file, lsu_mem_file, vcd]
+    tools:
+      modelsim:
+        vlog_options :
+          - -mfcu
+          - -cuautoname=du
+          - config/common_defines.vh
+          - include/def.sv
+      verilator:
+        verilator_options : [--trace, -Wno-fatal]
+    toplevel : tb
+
+generate:
+  swerv_default_config:
+    generator: swerv_config
+    position : first
+    parameters:
+      args : []
+
+parameters:
+  ifu_mem_file:
+    datatype : file
+    description : Verilog hex file to preload into data memory
+    paramtype : plusarg
+
+  lsu_mem_file:
+    datatype : file
+    description : Verilog hex file to preload into instruction memory
+    paramtype : plusarg
+
+  vcd:
+    datatype : bool
+    description : Dump VCD
+    paramtype : plusarg
